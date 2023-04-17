@@ -1,0 +1,133 @@
+How to ADD upstream Helm chart repository
+------------------------------------------
+helm repo add <REPOSITORY_NAME> <REPOSITORY_URL>
+
+
+To add any chart repository you should know the name and repository url.
+------------------------------------------
+helm repo add bitnami https://charts.bitnami.com/bitnami
+
+
+Verify the repository
+---------------------------------
+helm search repo bitnami
+
+To see the list of repositories added
+----------------------------------------
+helm repo list
+
+Updating the helm repo
+--------------------------
+Lets see how you can update your helm repositories. (The update command is necessary if haven’t updated your Helm chart repository in a while, so might miss some recent changes)
+
+Here is the command to update Helm repository
+
+helm repo update
+
+Removong a repository
+-----------------------------
+helm repo remove bitnami
+
+===========================================
+Demo
+===============
+In this tutorial, we are going to install WordPress with MariaDB using the Helm Chart on Kubernetes cluster. With this installation, we are going to see - How we can upgrade as well as rollback the Helm Chart release of WordPress. This complete setup inherited the benefits of the Kubernetes .i.e. scalability and availability.
+
+
+Since we are installing WordPress, so we need to have a database running behind the WordPress application. From the database standpoint, we are going to use MariaDB. Helm chart ships all these components in a single package, so that we need not worry about installing each component separately.
+
+
+To search for all wordpress relates repositories
+helm search hub wordpress
+
+If the output of the above command is too large we can use
+helm search hub wordpress  --max-col-width=0
+
+Ensure that the binami is installed
+-------------------------------------------
+helm repo add bitnami https://charts.bitnami.com/bitnami
+heml repo list
+
+Readme.md
+=================
+This Readme.md contains the installation instructions and it can be viewed using the following command
+
+helm show readme bitnami/wordpress --version 10.0.3
+
+To update the username and password
+vim wordpress-values.yml
+
+wordpressUsername: admin
+wordpressPassword: admin
+wordpressEmail: selenium.saikrishna@gmail.com
+wordpressFirstName: Sai
+wordpressLastName: Krishna
+wordpressBlogName: mywordpress.com
+service: 
+  type: LoadBalancer
+
+Create a new namespace
+kubectl create namespace nswordpress
+
+Versify the namesapce
+kubectl get namespace
+
+Run the below command to install wordpess in the namepsace
+helm install wordpress bitnami/wordpress --values=wordpress-values.yaml --namespace nswordpress --version 10.0.3
+
+
+To see the resources running in a specific namespace
+watch -x kubectl get all --namespace nswordpress
+
+To remove
+kubect uninstall wordpress
+
+================================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  clusterIP: None
+  selector:
+    app: mysql
+  ports:
+    - name: tcp
+      protocol: TCP
+      port: 3306
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  replicas: 2
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      volumes:
+        - name: task-pv-storage
+          persistentVolumeClaim:
+            claimName: task-pv-claim
+      containers:
+        - name: mysql
+          image: mysql:5.6
+          ports:
+            - name: tpc
+              protocol: TCP
+              containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: intelliqit
+
+          volumeMounts:
+            - name: task-pv-storage
+              mountPath: /var/lib/mysql
