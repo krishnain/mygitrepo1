@@ -1,0 +1,93 @@
+Prometheus grafana
+=====================
+Install prometheus and grafana
+======================================
+
+Use older version of kubernetes (1.19)
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add stable https://charts.helm.sh/stable
+helm repo update
+
+helm install prometheus prometheus-community/kube-prometheus-stack
+
+grafana by default runs on clusterip to make to accessable externally change to nodeport
+kubectl patch svc prometheus-grafana -p '{"spec": {"type": "NodePort"}}'
+
+Identify the port used by nodeport and opne firewallrules on gcp
+gcloud compute firewall-rules create firewall5  --allow tcp:31764
+
+Username is admin
+password: prom-operator
+
+======================================
+Autoscalling 
+=================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-apache
+spec:
+  selector:
+    matchLabels:
+      run: php-apache
+  template:
+    metadata:
+      labels:
+        run: php-apache
+    spec:
+      containers:
+      - name: php-apache
+        image: registry.k8s.io/hpa-example
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+          requests:
+            cpu: 200m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-apache
+  labels:
+    run: php-apache
+spec:
+  ports:
+  - port: 80
+  selector:
+    run: php-apache
+
+...
+
+
+kubectl autoscale deployment php-apache --cpu-percent=50 --min=1 --max=10
+
+kubectl get hpa
+
+kubectl run -i \
+    --tty load-generator \
+    --rm --image=busybox \
+    --restart=Never \
+    -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://php-apache; done"
+
+kubectl get hpa php-apache
+
+======================================================================================
+CreateContainerConfigError
+This error is usually the result of a missing Secret or ConfigMap. Secrets are Kubernetes objects used to store sensitive information like database credentials. ConfigMaps store data as key-value pairs, and are typically used to hold configuration information used by multiple pods.
+
+ImagePullBackOff or ErrImagePull
+This status means that a pod could not run because it attempted to pull a container image from a registry, and failed. The pod refuses to start because it cannot create one or more containers defined in its manifest.
+
+CrashLoopBackOff
+This issue indicates a pod cannot be scheduled on a node. This could happen because the node does not have sufficient resources to run the pod, or because the pod did not succeed in mounting the requested volumes.
+
+Kubernetes Node Not Ready
+When a worker node shuts down or crashes, all stateful pods that reside on it become unavailable, and the node status appears as NotReady.
+
+If a node has a NotReady status for over five minutes (by default), Kubernetes changes the status of pods scheduled on it to Unknown, and attempts to schedule it on another node, with status ContainerCreating.
+
+
+
